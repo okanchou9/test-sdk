@@ -43,11 +43,11 @@ check_and_upload:
         apt-get install git -y
         cd scan_file
         git init
-        git config --global user.email "kenie7@gmail.com"
-        git config --global user.name "okanchou9"
+        git config --global user.email "$gitlab_user_email"
+        git config --global user.name "$gitlab_user_id"
         git add --all
         git commit -m "GitLab Runner Push Scanned File to Clean Zone."
-        git push https://okanchou9:WzoG-_2FTueAiTi-bhHc@gitlab.com/okanchou9/clean_zone.git HEAD:master
+        git push https://$gitlab_user_id:$gitlab_user_token@gitlab.com/$gitlab_user_id/clean_zone.git HEAD:master
       else
         echo "SCAN failed and will not upload target file to clean zone. Please check detailed scan report and rescan again if need."
       fi
