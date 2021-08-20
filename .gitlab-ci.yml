@@ -9,40 +9,51 @@
 # you can delete this line if you're not using Docker
 image: ubuntu:20.04
 
-before_script:
-  # - apt-get update
-  # - apt-get upgrade -y
-  # - apt-get install clamav clamav-daemon -y
-  # - clamscan --version
-  # - service clamav-freshclam stop
-  # - freshclam
-  # - service clamav-freshclam start
-  #- apt-get update -y
-  #- apt-get install curl wget jq zip -y
-  #- curl -s https://api.github.com/repos/VirusTotal/vt-cli/releases/latest | grep Linux64.zip | cut -d '"' -f 4 | wget -qi -
-  #- curl -sL https://api.github.com/repos/VirusTotal/vt-cli/releases/latest | jq -r '.assets[].browser_download_url' | wget -qi -
-  #- unzip Linux64.zip
-  #- mv vt /usr/bin/
-  #- vt init --apikey bbc2a5462848dbd9ded26e10ef5c62abb41c4fddea3153485d696f110a6875f8
-  - echo "Do nothing"
+stages:
+  - test
+  - upload
 
-after_script:
-  - echo "Do nothing"
-
-# clamav_scan:
-#   stage: test
-#   script:
-#     - mkdir ~/123/
-#     - tar jxvf gcc-arm-none-eabi-10.3-2021.07-x86_64-linux.tar.bz2 --directory ~/123/
-#     - clamscan -i -v -r ~/123/
+clamav_scan:
+  stage: test
+  script:
+    - bash test_clamav.sh
+  artifacts:
+    paths:
+      - result_clamav.txt
+    expire_in: 1h
 
 virustotal_scan:
   stage: test
   script:
-    #- vt scan file gcc-arm-none-eabi-10.3-2021.07-x86_64-linux.tar.bz2 -v > virustotal_preresult.txt
-    #- grep gcc-arm-none-eabi-10.3-2021.07-x86_64-linux.tar.bz2 virustotal_preresult.txt | cut -d " " -f 2 | vt analysis - > virustotal_postresult.txt
-    #- cat virustotal_postresult.txt
-    - bash test.sh gcc-arm-none-eabi-10.3-2021.07-x86_64-linux.tar.bz2
+    - bash test_virustotal.sh
+  artifacts:
+    paths:
+      - result_virustotal.txt
+    expire_in: 1h
+
+check_and_upload:
+  stage: upload
+  script:
+    - ls -al
+    - cat result_clamav.txt
+    - cat result_virustotal.txt
+    - >
+      if grep -q "1" result_clamav.txt && grep -q "1" result_virustotal.txt; then
+        apt-get update
+        apt-get install git -y
+        cd scan_file
+        git init
+        git config --global user.email "kenie7@gmail.com"
+        git config --global user.name "okanchou9"
+        git add --all
+        git commit -m "GitLab Runner Push Scanned File to Clean Zone."
+        git push https://okanchou9:WzoG-_2FTueAiTi-bhHc@gitlab.com/okanchou9/clean_zone.git HEAD:master
+      else
+        echo "SCAN failed and will not upload target file to clean zone. Please check detailed scan report and rescan again if need."
+      fi
+  dependencies:
+    - clamav_scan
+    - virustotal_scan
 
 # include:
 #   - template: Security/SAST.gitlab-ci.yml
